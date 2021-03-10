@@ -1,0 +1,14 @@
+[package]
+name = "openat2"
+version = "0.1.0"
+edition = "2018"
+
+description = "A simple wrapper around Linux 5.6+'s openat2() system call"
+authors = ["cptpcrd"]
+license = "MIT"
+categories = ["os::linux-apis"]
+repository = "https://github.com/cptpcrd/openat2-rs"
+
+[dependencies]
+libc = "0.2"
+bitflags = "1.2"
