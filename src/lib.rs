@@ -177,17 +177,13 @@ mod tests {
             }
 
             assert_eq!(
-                openat2(None, "./NOEXIST", &how)
-                    .unwrap_err()
-                    .raw_os_error(),
+                openat2(None, "./NOEXIST", &how).unwrap_err().raw_os_error(),
                 Some(libc::ENOENT)
             );
 
             how.resolve |= ResolveFlags::BENEATH;
             assert_eq!(
-                openat2(None, "/", &how)
-                    .unwrap_err()
-                    .raw_os_error(),
+                openat2(None, "/", &how).unwrap_err().raw_os_error(),
                 Some(libc::EXDEV)
             );
         } else {
