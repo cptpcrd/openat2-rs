@@ -112,7 +112,7 @@ pub fn openat2_cstr(dirfd: Option<RawFd>, path: &CStr, how: &OpenHow) -> io::Res
 /// Note: Use of [`has_openat2_cached()`] is recommended for most cases.
 #[inline]
 pub fn has_openat2() -> bool {
-    if unsafe {
+    match unsafe {
         libc::syscall(
             SYS_OPENAT2,
             libc::AT_FDCWD,
@@ -120,15 +120,19 @@ pub fn has_openat2() -> bool {
             std::ptr::null::<OpenHow>(),
             std::mem::size_of::<OpenHow>(),
         )
-    } == 0
-    {
-        // This shouldn't happen.
-        // Conservatively assume that openat2() isn't present.
-        return false;
-    }
+    } {
+        // EFAULT is expected because of the null pointers
+        -1 => unsafe { *libc::__errno_location() == libc::EFAULT },
 
-    // EFAULT is expected because of the null pointers
-    unsafe { *libc::__errno_location() == libc::EFAULT }
+        fd => {
+            // This shouldn't happen.
+            // Close the file descriptor and conservatively assume that openat2() isn't present.
+            unsafe {
+                libc::close(fd as _);
+            }
+            false
+        }
+    }
 }
 
 /// A cached version of [`has_openat2()`].
