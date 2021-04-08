@@ -31,6 +31,14 @@ bitflags::bitflags! {
         /// future. If your application nees to ensure that magic links are not resolved, you
         /// should explicitly specify [`Self::NO_MAGICLINKS`].
         const IN_ROOT = 0x10;
+        /// Only allow the open operation to succeed if it can be done entirely with information in
+        /// the kernel's lookup cache.
+        ///
+        /// Added in Linux 5.12.
+        ///
+        /// This will fail with `EAGAIN` if any kind of revalidation or I/O is needed. It may be
+        /// useful for fast-path opens, with a fallback on offloading to a thread.
+        const CACHED = 0x20;
     }
 }
 
