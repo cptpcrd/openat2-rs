@@ -171,6 +171,38 @@ pub fn has_openat2_cached() -> bool {
     }
 }
 
+/// Check whether the running kernel supports the given `OpenHow` structure.
+///
+/// This will return `false` if the running kernel either a) doesn't support `openat2()` or b)
+/// doesn't support the given `how`.
+///
+/// This can be useful for probing for the kernel's support of specific flags, such as
+/// [`ResolveFlags::CACHED`] (added in kernel 5.12). However, this function may be slow, so it's
+/// highly recommended to cache the result to avoid repeated syscalls.
+#[inline]
+pub fn supports_open_how(how: &OpenHow) -> bool {
+    match unsafe {
+        libc::syscall(
+            SYS_OPENAT2,
+            libc::AT_FDCWD,
+            b"\0".as_ptr() as *const libc::c_char,
+            how as *const OpenHow,
+            std::mem::size_of::<OpenHow>(),
+        )
+    } {
+        -1 => matches!(unsafe { *libc::__errno_location() }, libc::ENOENT),
+
+        fd => {
+            // This shouldn't happen.
+            // Close the file descriptor and conservatively assume that `how` isn't supported
+            unsafe {
+                libc::close(fd as _);
+            }
+            false
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,6 +215,8 @@ mod tests {
             assert!(has_openat2_cached());
             assert!(has_openat2_cached());
 
+            assert!(supports_open_how(&how));
+
             let fd = openat2(None, ".", &how).unwrap();
             unsafe {
                 libc::close(fd);
@@ -194,6 +228,7 @@ mod tests {
             );
 
             how.resolve |= ResolveFlags::BENEATH;
+            assert!(supports_open_how(&how));
             assert_eq!(
                 openat2(None, "/", &how).unwrap_err().raw_os_error(),
                 Some(libc::EXDEV)
@@ -201,6 +236,8 @@ mod tests {
         } else {
             assert!(!has_openat2_cached());
             assert!(!has_openat2_cached());
+
+            assert!(!supports_open_how(&how));
 
             let eno = openat2(None, ".", &how)
                 .unwrap_err()
