@@ -1,6 +1,6 @@
 [package]
 name = "openat2"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 
 description = "A simple wrapper around Linux 5.6+'s openat2() system call"
