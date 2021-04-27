@@ -51,7 +51,7 @@ pub struct OpenHow {
     pub flags: u64,
     /// The mode to create the file with.
     ///
-    /// If `O_CREAT` or `O_TMPFILE` is in [`Self::flags`], this must be 0.
+    /// If `O_CREAT` or `O_TMPFILE` is not in [`Self::flags`], this must be 0.
     pub mode: u64,
     /// Flags that modify path resolution. See [`ResolveFlags`].
     pub resolve: ResolveFlags,
