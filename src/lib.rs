@@ -70,6 +70,66 @@ impl OpenHow {
             resolve: ResolveFlags::empty(),
         }
     }
+
+    /// Emulate the kernel's truncation of `self.flags`/`self.mode` for `open()`/`openat()`.
+    ///
+    /// `open()` and `openat()` will ignore `flags` that they do not recognize, and will ignore
+    /// `mode` if neither `O_CREAT` nor `O_TMPFILE` was specified. `openat2()`, however, fails
+    /// with `EINVAL` in these scenarios.
+    ///
+    /// This method will modify `self.flags` and `self.mode` such that calling `openat2()` with
+    /// this `OpenHow` structure should NOT fail with `EINVAL` because those fields are invalid. It
+    /// may be useful in scenarios where it is necessary to emulate the behavior of `open()` or
+    /// `openat()`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use openat2::OpenHow;
+    /// let mut how = OpenHow::new(libc::O_PATH | libc::O_WRONLY | libc::O_CLOEXEC, 0o666);
+    /// how.truncate_flags_mode();
+    /// // The kernel ignores all but a few `flags` (and ignores `mode` entirely) when O_PATH is
+    /// // specified, so that's emulated by this function
+    /// assert_eq!(how.flags, (libc::O_PATH | libc::O_CLOEXEC) as u64);
+    /// assert_eq!(how.mode, 0);
+    /// ```
+    pub fn truncate_flags_mode(&mut self) {
+        if self.flags & libc::O_PATH as u64 == libc::O_PATH as u64 {
+            // Only a few `flags` work with O_PATH, and `mode` is ignored completely
+            self.flags &=
+                (libc::O_PATH | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC) as u64;
+            self.mode = 0;
+        } else {
+            // Exhaustive list of all valid `flags`
+            self.flags &= (libc::O_RDONLY
+                | libc::O_WRONLY
+                | libc::O_RDWR
+                | libc::O_APPEND
+                | libc::O_ASYNC
+                | libc::O_CLOEXEC
+                | libc::O_CREAT
+                | libc::O_DIRECT
+                | libc::O_DIRECTORY
+                | libc::O_DSYNC
+                | libc::O_EXCL
+                | libc::O_LARGEFILE
+                | libc::O_NOATIME
+                | libc::O_NOCTTY
+                | libc::O_NOFOLLOW
+                | libc::O_NONBLOCK
+                | libc::O_PATH
+                | libc::O_SYNC
+                | libc::O_TMPFILE
+                | libc::O_TRUNC) as u64;
+
+            // `mode` is ignored except for `O_CREAT` and `O_TMPFILE`
+            if self.flags & libc::O_CREAT as u64 != libc::O_CREAT as u64
+                && self.flags & libc::O_TMPFILE as u64 != libc::O_TMPFILE as u64
+            {
+                self.mode = 0;
+            }
+        }
+    }
 }
 
 /// Call the `openat2()` syscall to open the specified `path`.
@@ -246,5 +306,44 @@ mod tests {
 
             assert!(matches!(eno, libc::ENOSYS | libc::EPERM));
         }
+    }
+
+    #[test]
+    fn test_openhow_truncate_flags_mode() {
+        let mut how = OpenHow::new(0, 0);
+
+        how.flags = (libc::O_WRONLY | libc::O_TRUNC | libc::O_SYNC | libc::O_CLOEXEC) as u64;
+        how.mode = 0o666;
+        how.truncate_flags_mode();
+        assert_eq!(
+            how.flags,
+            (libc::O_WRONLY | libc::O_TRUNC | libc::O_SYNC | libc::O_CLOEXEC) as u64
+        );
+        assert_eq!(how.mode, 0);
+
+        how.flags = (libc::O_PATH | libc::O_WRONLY | libc::O_CLOEXEC) as u64;
+        how.mode = 0o666;
+        how.truncate_flags_mode();
+        assert_eq!(how.flags, (libc::O_PATH | libc::O_CLOEXEC) as u64);
+        assert_eq!(how.mode, 0);
+
+        // O_CREAT and O_TMPFILE actually preserve the `flags` argument
+        how.flags = (libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC | libc::O_CLOEXEC) as u64;
+        how.mode = 0o666;
+        how.truncate_flags_mode();
+        assert_eq!(
+            how.flags,
+            (libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC | libc::O_CLOEXEC) as u64
+        );
+        assert_eq!(how.mode, 0o666);
+
+        how.flags = (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64;
+        how.mode = 0o666;
+        assert_eq!(
+            how.flags,
+            (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64
+        );
+        how.truncate_flags_mode();
+        assert_eq!(how.mode, 0o666);
     }
 }
