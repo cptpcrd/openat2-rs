@@ -215,17 +215,15 @@ pub fn has_openat2() -> bool {
 pub fn has_openat2_cached() -> bool {
     use std::sync::atomic::{AtomicU8, Ordering};
 
-    static mut HAS_OPENAT2: AtomicU8 = AtomicU8::new(2);
+    static HAS_OPENAT2: AtomicU8 = AtomicU8::new(2);
 
-    match unsafe { HAS_OPENAT2.load(Ordering::Relaxed) } {
+    match HAS_OPENAT2.load(Ordering::Relaxed) {
         0 => false,
         1 => true,
 
         _ => {
             let res = has_openat2();
-            unsafe {
-                HAS_OPENAT2.store(res as u8, Ordering::Relaxed);
-            }
+            HAS_OPENAT2.store(res as u8, Ordering::Relaxed);
             res
         }
     }
