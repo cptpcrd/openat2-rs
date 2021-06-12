@@ -18,6 +18,13 @@
 //!     // ...
 //! }
 //! ```
+//!
+//! # Behavior on non-Linux platforms
+//!
+//! On non-Linux platforms, this compiles to an empty crate, which allows it to be easily used as an
+//! optional dependency in cross-platform crates.
+
+#![cfg(target_os = "linux")]
 
 use std::ffi::{CStr, CString};
 use std::io;
