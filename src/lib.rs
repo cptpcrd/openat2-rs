@@ -1,3 +1,24 @@
+//! A simple wrapper around Linux 5.6+'s `openat2()` system call.
+//!
+//! # Example
+//!
+//! ```
+//! # use openat2::{OpenHow, ResolveFlags, has_openat2, openat2};
+//! # use std::os::unix::prelude::*;
+//! if has_openat2() {
+//!     // openat2() is present
+//!     let mut how = OpenHow::new(libc::O_RDONLY | libc::O_CLOEXEC, 0);
+//!     how.resolve |= ResolveFlags::NO_SYMLINKS;
+//!     let fd = openat2(None, "/", &how).unwrap();
+//!     let file = unsafe { std::fs::File::from_raw_fd(fd) };
+//!     // Use `file`
+//!     # drop(file);
+//! } else {
+//!     // openat2() is not present; use an alternate implementation
+//!     // ...
+//! }
+//! ```
+
 use std::ffi::{CStr, CString};
 use std::io;
 use std::os::unix::prelude::*;
