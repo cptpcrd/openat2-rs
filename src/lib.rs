@@ -123,9 +123,12 @@ impl OpenHow {
                 | libc::O_TRUNC) as u64;
 
             // `mode` is ignored except for `O_CREAT` and `O_TMPFILE`
-            if self.flags & libc::O_CREAT as u64 != libc::O_CREAT as u64
-                && self.flags & libc::O_TMPFILE as u64 != libc::O_TMPFILE as u64
+            if self.flags & libc::O_CREAT as u64 == libc::O_CREAT as u64
+                || self.flags & libc::O_TMPFILE as u64 == libc::O_TMPFILE as u64
             {
+                // Even then, it's truncated to only the valid bits
+                self.mode &= 0o7777;
+            } else {
                 self.mode = 0;
             }
         }
@@ -343,5 +346,14 @@ mod tests {
         );
         how.truncate_flags_mode();
         assert_eq!(how.mode, 0o666);
+
+        how.flags = (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64;
+        how.mode = 0o77777;
+        assert_eq!(
+            how.flags,
+            (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64
+        );
+        how.truncate_flags_mode();
+        assert_eq!(how.mode, 0o7777);
     }
 }
