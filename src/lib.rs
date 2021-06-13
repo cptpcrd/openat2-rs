@@ -71,6 +71,16 @@ bitflags::bitflags! {
 }
 
 /// A structure that specifies how a path should be opened with [`openat2()`].
+///
+/// This structure is non-exhaustive because Linux may add new fields to the `open_how` structure
+/// in the future. Instances can be created with [`Self::new()`] and then modified, like this:
+///
+/// ```
+/// # use openat2::{OpenHow, ResolveFlags};
+/// let mut how = OpenHow::new(libc::O_RDONLY | libc::O_CLOEXEC, 0);
+/// how.resolve |= ResolveFlags::NO_SYMLINKS;
+/// # drop(how);
+/// ```
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 #[repr(C)]
@@ -79,7 +89,8 @@ pub struct OpenHow {
     pub flags: u64,
     /// The mode to create the file with.
     ///
-    /// If `O_CREAT` or `O_TMPFILE` is not in [`Self::flags`], this must be 0.
+    /// If `O_CREAT` or `O_TMPFILE` is not in [`Self::flags`] (or if `O_PATH` is in
+    /// [`Self::flags`]), this must be 0. It also cannot contain any bits not in the mask `0o7777`.
     pub mode: u64,
     /// Flags that modify path resolution. See [`ResolveFlags`].
     pub resolve: ResolveFlags,
@@ -87,6 +98,8 @@ pub struct OpenHow {
 
 impl OpenHow {
     /// Create a new `OpenHow` structure with the specified `flags` and `mode`.
+    ///
+    /// All other fields of this structure will be empty (i.e. zeroed).
     ///
     /// Since this structure is non-exhaustive, this is the only way to create an `OpenHow`
     /// structure. Other fields can then be modified on the returned structure.
