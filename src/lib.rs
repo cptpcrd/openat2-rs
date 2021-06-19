@@ -114,9 +114,9 @@ impl OpenHow {
 
     /// Emulate the kernel's truncation of `self.flags`/`self.mode` for `open()`/`openat()`.
     ///
-    /// `open()` and `openat()` will ignore `flags` that they do not recognize, and will ignore
-    /// `mode` if neither `O_CREAT` nor `O_TMPFILE` was specified. `openat2()`, however, fails
-    /// with `EINVAL` in these scenarios.
+    /// `open()` and `openat()` will ignore `flags` that they do not recognize, will ignore
+    /// `mode` if neither `O_CREAT` nor `O_TMPFILE` was specified, and will ignore bits from `mode`
+    /// outside the mask `0o7777`. `openat2()`, however, fails with `EINVAL` in these scenarios.
     ///
     /// This method will modify `self.flags` and `self.mode` such that calling `openat2()` with
     /// this `OpenHow` structure should NOT fail with `EINVAL` because those fields are invalid. It
