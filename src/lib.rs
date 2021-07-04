@@ -31,9 +31,6 @@ use std::io;
 use std::os::unix::prelude::*;
 use std::path::Path;
 
-/// Correct on every architecture except alpha (which Rust doesn't support)
-const SYS_OPENAT2: libc::c_long = 437;
-
 bitflags::bitflags! {
     /// Flags that modify path resolution.
     #[repr(transparent)]
@@ -201,7 +198,7 @@ pub fn openat2<P: AsRef<Path>>(dirfd: Option<RawFd>, path: P, how: &OpenHow) -> 
 pub fn openat2_cstr(dirfd: Option<RawFd>, path: &CStr, how: &OpenHow) -> io::Result<RawFd> {
     let res = unsafe {
         libc::syscall(
-            SYS_OPENAT2,
+            libc::SYS_openat2,
             dirfd.unwrap_or(libc::AT_FDCWD),
             path.as_ptr(),
             how as *const OpenHow,
@@ -226,7 +223,7 @@ pub fn openat2_cstr(dirfd: Option<RawFd>, path: &CStr, how: &OpenHow) -> io::Res
 pub fn has_openat2() -> bool {
     match unsafe {
         libc::syscall(
-            SYS_OPENAT2,
+            libc::SYS_openat2,
             libc::AT_FDCWD,
             std::ptr::null::<libc::c_char>(),
             std::ptr::null::<OpenHow>(),
@@ -285,7 +282,7 @@ pub fn has_openat2_cached() -> bool {
 pub fn supports_open_how(how: &OpenHow) -> bool {
     match unsafe {
         libc::syscall(
-            SYS_OPENAT2,
+            libc::SYS_openat2,
             libc::AT_FDCWD,
             b"\0".as_ptr() as *const libc::c_char,
             how as *const OpenHow,
