@@ -116,9 +116,9 @@ impl OpenHow {
     /// outside the mask `0o7777`. `openat2()`, however, fails with `EINVAL` in these scenarios.
     ///
     /// This method will modify `self.flags` and `self.mode` such that calling `openat2()` with
-    /// this `OpenHow` structure should NOT fail with `EINVAL` because those fields are invalid. It
-    /// may be useful in scenarios where it is necessary to emulate the behavior of `open()` or
-    /// `openat()`.
+    /// this `OpenHow` structure should NOT fail with `EINVAL` because those fields are invalid
+    /// (except in cases where `open()`/`openat()` would also fail). It may be useful in scenarios
+    /// where it is necessary to emulate the behavior of `open()` or `openat()`.
     ///
     /// # Example
     ///
