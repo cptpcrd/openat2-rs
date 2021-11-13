@@ -370,10 +370,7 @@ mod tests {
         how.flags = (libc::O_PATH | libc::O_WRONLY | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64;
         how.mode = 0o666;
         how.truncate_flags_mode();
-        assert_eq!(
-            how.flags,
-            (libc::O_PATH | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64
-        );
+        assert_eq!(how.flags, (libc::O_PATH | libc::O_CLOEXEC) as u64);
         assert_eq!(how.mode, 0);
 
         // O_CREAT and O_TMPFILE actually preserve the `flags` argument
