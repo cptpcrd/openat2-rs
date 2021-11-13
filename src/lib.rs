@@ -155,7 +155,6 @@ impl OpenHow {
                 | libc::O_NOCTTY
                 | libc::O_NOFOLLOW
                 | libc::O_NONBLOCK
-                | libc::O_PATH
                 | libc::O_SYNC
                 | libc::O_TMPFILE
                 | libc::O_TRUNC) as u64;
