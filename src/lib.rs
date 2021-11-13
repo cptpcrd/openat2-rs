@@ -7,7 +7,7 @@
 //! # use std::os::unix::prelude::*;
 //! if has_openat2() {
 //!     // openat2() is present
-//!     let mut how = OpenHow::new(libc::O_RDONLY | libc::O_CLOEXEC, 0);
+//!     let mut how = OpenHow::new(libc::O_RDONLY | libc::O_CLOEXEC | libc::O_LARGEFILE, 0);
 //!     how.resolve |= ResolveFlags::NO_SYMLINKS;
 //!     let fd = openat2(None, "/", &how).unwrap();
 //!     let file = unsafe { std::fs::File::from_raw_fd(fd) };
@@ -124,7 +124,10 @@ impl OpenHow {
     ///
     /// ```
     /// # use openat2::OpenHow;
-    /// let mut how = OpenHow::new(libc::O_PATH | libc::O_WRONLY | libc::O_CLOEXEC, 0o666);
+    /// let mut how = OpenHow::new(
+    ///     libc::O_PATH | libc::O_WRONLY | libc::O_LARGEFILE | libc::O_CLOEXEC,
+    ///     0o666,
+    /// );
     /// how.truncate_flags_mode();
     /// // The kernel ignores all but a few `flags` (and ignores `mode` entirely) when O_PATH is
     /// // specified, so that's emulated by this function
@@ -183,6 +186,8 @@ impl OpenHow {
 /// - If `dirfd` is `None`, it will be translated to `AT_FDCWD` when calling the syscall.
 /// - The returned file descriptor will NOT have its close-on-exec flag set by default! It is
 ///   recommended to include `O_CLOEXEC` in the flags specified using `how` to ensure this is set.
+/// - It is **strongly** recommended to include the [`libc::O_LARGEFILE`] flag (when not specifying
+///   `O_PATH`) to ensure proper handling of 64-bit files on 32-bit systems.
 #[inline]
 pub fn openat2<P: AsRef<Path>>(dirfd: Option<RawFd>, path: P, how: &OpenHow) -> io::Result<RawFd> {
     let path = CString::new(path.as_ref().as_os_str().as_bytes())?;
@@ -307,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_has_openat2() {
-        let mut how = OpenHow::new(libc::O_RDONLY, 0);
+        let mut how = OpenHow::new(libc::O_RDONLY | libc::O_LARGEFILE, 0);
 
         if has_openat2() {
             assert!(has_openat2_cached());
@@ -350,45 +355,54 @@ mod tests {
     fn test_openhow_truncate_flags_mode() {
         let mut how = OpenHow::new(0, 0);
 
-        how.flags = (libc::O_WRONLY | libc::O_TRUNC | libc::O_SYNC | libc::O_CLOEXEC) as u64;
+        how.flags =
+            (libc::O_WRONLY | libc::O_TRUNC | libc::O_SYNC | libc::O_LARGEFILE | libc::O_CLOEXEC)
+                as u64;
         how.mode = 0o666;
         how.truncate_flags_mode();
         assert_eq!(
             how.flags,
-            (libc::O_WRONLY | libc::O_TRUNC | libc::O_SYNC | libc::O_CLOEXEC) as u64
+            (libc::O_WRONLY | libc::O_TRUNC | libc::O_SYNC | libc::O_LARGEFILE | libc::O_CLOEXEC)
+                as u64
         );
         assert_eq!(how.mode, 0);
 
-        how.flags = (libc::O_PATH | libc::O_WRONLY | libc::O_CLOEXEC) as u64;
+        how.flags = (libc::O_PATH | libc::O_WRONLY | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64;
         how.mode = 0o666;
         how.truncate_flags_mode();
-        assert_eq!(how.flags, (libc::O_PATH | libc::O_CLOEXEC) as u64);
+        assert_eq!(
+            how.flags,
+            (libc::O_PATH | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64
+        );
         assert_eq!(how.mode, 0);
 
         // O_CREAT and O_TMPFILE actually preserve the `flags` argument
-        how.flags = (libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC | libc::O_CLOEXEC) as u64;
+        how.flags =
+            (libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC | libc::O_LARGEFILE | libc::O_CLOEXEC)
+                as u64;
         how.mode = 0o666;
         how.truncate_flags_mode();
         assert_eq!(
             how.flags,
-            (libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC | libc::O_CLOEXEC) as u64
+            (libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC | libc::O_LARGEFILE | libc::O_CLOEXEC)
+                as u64
         );
         assert_eq!(how.mode, 0o666);
 
-        how.flags = (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64;
+        how.flags = (libc::O_WRONLY | libc::O_TMPFILE | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64;
         how.mode = 0o666;
         assert_eq!(
             how.flags,
-            (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64
+            (libc::O_WRONLY | libc::O_TMPFILE | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64
         );
         how.truncate_flags_mode();
         assert_eq!(how.mode, 0o666);
 
-        how.flags = (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64;
+        how.flags = (libc::O_WRONLY | libc::O_TMPFILE | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64;
         how.mode = 0o77777;
         assert_eq!(
             how.flags,
-            (libc::O_WRONLY | libc::O_TMPFILE | libc::O_CLOEXEC) as u64
+            (libc::O_WRONLY | libc::O_TMPFILE | libc::O_LARGEFILE | libc::O_CLOEXEC) as u64
         );
         how.truncate_flags_mode();
         assert_eq!(how.mode, 0o7777);
