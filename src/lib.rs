@@ -225,17 +225,26 @@ pub fn openat2_cstr(dirfd: Option<RawFd>, path: &CStr, how: &OpenHow) -> io::Res
 /// Note: Use of [`has_openat2_cached()`] is recommended for most cases.
 #[inline]
 pub fn has_openat2() -> bool {
+    static HOW: OpenHow = OpenHow {
+        flags: libc::O_RDONLY as _,
+        mode: 0o600,
+        resolve: ResolveFlags::empty(),
+    };
+
     match unsafe {
         libc::syscall(
             libc::SYS_openat2,
             libc::AT_FDCWD,
-            std::ptr::null::<libc::c_char>(),
-            std::ptr::null::<OpenHow>(),
-            std::mem::size_of::<OpenHow>(),
+            b"\0".as_ptr() as *const libc::c_char,
+            &HOW as *const OpenHow,
+            0usize,
         )
     } {
-        // EFAULT is expected because of the null pointers
-        -1 => unsafe { *libc::__errno_location() == libc::EFAULT },
+        // EINVAL is expected, because:
+        // 1. We passed size=0 (too small)
+        // 2. how.mode != 0, but flags doesn't contain either O_CREAT or O_TMPFILE
+        // According to the main page, either of those will trigger EINVAL
+        -1 => unsafe { *libc::__errno_location() ==  libc::EINVAL },
 
         fd => {
             // This shouldn't happen.
